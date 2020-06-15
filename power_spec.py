@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import readligo as rl
 
-# -- Read in the file and data
 fileName = '/Users/juliabellamy/PycharmProjects/ligo_stuff/LIGO/H-H1_LOSC_C00_4_V1-1186739813-4096.hdf5'
+# -- Read in the file and data
 strain, time, channel_dict = rl.loaddata(fileName)
 ts = time[1] - time[0]  # Time between samples
 fs = int(1.0 / ts)  # Sampling frequency
@@ -38,24 +38,6 @@ plt.ylabel('Strain')
 plt.show()
 '''''
 
-len_strain_seg = len(strain_seg)  # length of data
-len_seg = 64  # length of segments
-i = 0  # index
-seg = [] * len_seg
-Pxx = []
-window = np.hanning(len_seg)
-print("window_length: " + str(len(window)))
-print(len(window[0:32]))
-print(len(window[32:64]))
-
-time_slice = ts * len_seg
-min_freq = 1 / time_slice
-print("min_freq: " + str(min_freq))
-f_nyquist = 1 / (2 * ts)
-print("f_nyquist: " + str(f_nyquist))
-
-count = 0
-
 
 def start(array, trend, window_type):
     seg_trend = mlab.detrend(array, key=trend)
@@ -71,53 +53,57 @@ def end(array, trend, window_type):
     return seg_win
 
 
+def power(data):
+    fft = np.fft.rfft(data)
+    mag_fft = np.abs(fft)
+    p = np.square(mag_fft)
+    psd = np.average(p)
+    return psd
+
+
+len_strain_seg = len(strain_seg)  # length of data
+len_seg = 64  # length of segments
+i = 0  # index
+seg = [] * len_seg
+Pxx = []
+window = np.hanning(len_seg)
+print("window_length: " + str(len(window)))
+
+
+time_slice = ts * len_seg
+min_freq = 1 / time_slice
+print("min_freq: " + str(min_freq))
+f_nyquist = 1 / (2 * ts)
+print("f_nyquist: " + str(f_nyquist))
+
+begin = True
+
+
 # Create the segments
 while i < len_strain_seg:
-    if count == 0:
-        seg = strain_seg[i:(i + int(len_seg / 2))]
-        seg_detrend = mlab.detrend(seg, key='none')
-        window = window[(int(len(window) / 2)):]
-        seg_windowed = window * seg_detrend
-        P_fft = np.fft.rfft(seg_windowed)  # take the fft of real input
-        # print(len(P_fft))
-        P_abs = np.abs(P_fft)  # Find the absolute value
-        P = np.square(P_abs)  # Square the absolute value
-        Pxx.append(np.average(P))
-        count = 1
-        continue
-    if count != 0:
-        seg = strain_seg[i:(i + len_seg)]
-        seg_detrend = mlab.detrend(seg, key='none')
-        seg_windowed = window * seg_detrend
-        # print(len(seg_windowed))
-        P_fft = np.fft.rfft(seg_windowed)  # take the fft of real input
-        # print(len(P_fft))
-        P_abs = np.abs(P_fft)  # Find the absolute value
-        P = np.square(P_abs)  # Square the absolute value
-        Pxx.append(np.average(P))
-        i += int(len_seg / 2)
-        count += 1
-    if len_strain_seg - i < len_seg:
-        seg = strain_seg[i:(i + int(len_seg / 2))]
-        seg_detrend = mlab.detrend(seg, key='none')
-        window = window[:(int(len(window) / 2))]
-        seg_windowed = window * seg_detrend
-        # print(len(seg_windowed))
-        P_fft = np.fft.rfft(seg_windowed)  # take the fft of real input
-        # print(len(P_fft))
-        P_abs = np.abs(P_fft)  # Find the absolute value
-        P = np.square(P_abs)  # Square the absolute value
-        Pxx.append(np.average(P))
-        i += int(len_seg / 2)
-        count += 1
+    if begin:
+        seg = strain_seg[0:int(len_seg / 2)]
+        seg_windowed = start(seg, "none", window)
+        P = power(seg_windowed)
+        Pxx.append(P)
+        begin = False
+        pass
+    elif not len_strain_seg - i < len_seg and not begin:
+        seg1 = strain_seg[i:(i + len_seg)]
+        seg_trend_1 = mlab.detrend(seg1, key='none')
+        seg_windowed_1 = window * seg_trend_1
+        P1 = power(seg_windowed_1)
+        Pxx.append(P1)
+        i += int(len_seg/2)
     else:
+        seg2 = strain_seg[i:(i + int(len_seg / 2))]
+        seg_windowed_2 = start(seg2, "none", window)
+        P2 = power(seg_windowed_2)
+        Pxx.append(P2)
         break
 
-print(len(Pxx))
-
-'''''
 # Generate the frequency space
-f = np.linspace(0, 1/(2*ts), int(len(Pxx)))
+f = np.linspace(0, f_nyquist, int(len(Pxx)))
 print("len(f): " + str(len(f)))
 print("len(Pxx): " + str(len(Pxx)))
 
@@ -143,4 +129,4 @@ plt.title("PSD (function)")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
 plt.show()
-'''''
+
