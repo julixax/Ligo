@@ -66,17 +66,9 @@ def psd(x, NFFT, Fs, noverlap=None):
         x = np.resize(x, NFFT)
         x[n:] = 0
 
-    # Due to only needing real frequencies, ignore the negative frequencies
-    if NFFT % 2:
-        numFreqs = (NFFT + 1) // 2
-    else:
-        numFreqs = NFFT // 2 + 1
-
-    if not np.iterable(window):
-        window = window(np.ones(NFFT, x.dtype))
-
 
     # Add zeros to both sides to allow for rolling window to be applied
+    # When these are added, they change the calculation
     #h = int(NFFT / 2)
     #n = np.zeros(h)
     #x = np.concatenate([n, x, n])
@@ -141,9 +133,13 @@ plt.xlabel('Time since GPS ' + str(time_seg[0]))
 plt.ylabel('Strain')
 plt.show()
 
-PSD, freq = psd(strain_seg, 16, fs, 8)
+# Determine the segment length
+NFFT = fs
 
-# Plot the coded and method psdon figure (make sure parameters are the same)
+# Calculate the coded PSD (above)
+PSD, freq = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+
+# Plot the coded and method psd on figure (make sure parameters are the same)
 fig = plt.figure(figsize=(8, 8))
 fig.subplots_adjust(wspace=0.3, hspace=0.3)
 fig.suptitle("PSD Comparisons")
@@ -154,8 +150,8 @@ plt.title("PSD (coded)")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
 
-window1 = np.hanning(16)
-Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=16, Fs=fs, noverlap=8, window=window1, sides='onesided')
+window1 = np.hanning(NFFT)
+Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=window1)
 
 plt.subplot(212)
 plt.loglog(freqs1, Pxx1)
