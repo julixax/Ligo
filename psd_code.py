@@ -42,21 +42,31 @@ def psd(x, NFFT, Fs):
     x = mlab.detrend(x, key='none')
     # Apply the rolling hanning windows
     x = rolling_windows(x, NFFT)
-    # Compute the real fft and only look at the
+    # Compute the real fft and only look at the positive frequencies
     x = np.fft.fft(x)[:numFreqs, :]
-    print("x: ")
-    print(x)
-    x1 = np.fft.fft(x)
-    print("x1: ")
-    print(x1)
-    x = x * np.conj(x)
+    # Calculate the magnitude squared
+    Pxx = x * np.conj(x)
 
 
+    # Scaling of the psd
+    if not NFFT % 2:
+        slc = slice(1, -1, None)
+        # if we have an odd number, just don't scale DC
+    else:
+        slc = slice(1, None, None)
 
-    return
+
+    Pxx[slc] *= 2.
+    Pxx /= Fs
+    window = np.hanning(NFFT)
+    # Scale the spectrum by the norm of the window to compensate for window loss
+    Pxx /= (np.abs(window) ** 2).sum()
+
+    # Determine the positive frequencies
+    freqs = np.fft.fftfreq(NFFT, 1 / Fs)[:numFreqs]
+
+    return Pxx, freqs
 
 
-x = np.arange(1, 13, 1)
-psd(x, 6, 2)
 
 
