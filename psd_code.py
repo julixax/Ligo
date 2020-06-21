@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 def rolling_windows(x, n, noverlap=None, axis=0):
     # Get all windows of x with length n as a single array, using strides to avoid data duplication.
     # This was taken from the documentation because mine had bugs in it
+    # I am in the process of looking more into this stride function as well as pandas rolling window function
 
     if noverlap is None:
         noverlap = 0
@@ -14,7 +15,11 @@ def rolling_windows(x, n, noverlap=None, axis=0):
 
     if n == 1 and noverlap == 0:
         if axis == 0:
+            # This adds one more dimension
+            print(x)
+            print(x[np.newaxis])
             return x[np.newaxis]
+
         else:
             return x[np.newaxis].transpose()
 
@@ -30,22 +35,6 @@ def rolling_windows(x, n, noverlap=None, axis=0):
         strides = (step * x.strides[0], x.strides[0])
     return np.lib.stride_tricks.as_strided(x, shape=shape, strides=strides)
 
-
-'''''
-# this was my rolling window function, but it was not working with the rest of the code
-
-    window = np.hanning(NFFT)
-    result = []
-    i = 0
-    while i < len(x):
-        if len(x) - i <= int(NFFT/2):
-            break
-        else:
-            seg = x[i:(i + NFFT)]
-            result.append(window * seg)
-            i += int(NFFT / 2)
-    return result
-'''''
 
 
 def psd(x, NFFT, Fs, noverlap=None):
@@ -159,3 +148,14 @@ plt.title("PSD (function)")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
 plt.show()
+
+
+diff = Pxx1 - PSD
+plt.figure()
+plt.plot(freq, diff)
+plt.title("Difference between then two plots")
+plt.xlabel("Frequency (Hz)")
+plt.xlim(0, 100)
+plt.ylabel("Difference")
+plt.show()
+
