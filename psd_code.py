@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.mlab as mlab
 import readligo as rl
 import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import acf
 
 
 def rolling_windows(x, n, noverlap=None, axis=0):
@@ -91,41 +92,14 @@ def psd(x, NFFT, Fs, noverlap=None):
 
 def psd_autocorr(x, NFFT, Fs, noverlap=None):
 
-    # If there is noverlap is None, then there is no overlap between the windows
-    if noverlap is None:
-        noverlap = 0
+    # Determine the AutoCorrelation
+    acorr_x = acf(x)
 
-    # Make the window the size of the NFFT
-    window = np.hanning(NFFT)
+    # Take the Fourier Transform of the autocorrelation
+    Pxx = np.fft.rfft(acorr_x, n=NFFT, axis=0)
 
-    # Make sure the data is a np array
-    x = np.asarray(x)
-
-    # zero pad x if the data is less than the segment NFFT
-    if len(x) < NFFT:
-        n = len(x)
-        x = np.resize(x, NFFT)
-        x[n:] = 0
-
-    # Apply the rolling window to the data
-    Pxx = rolling_windows(x, NFFT, noverlap, axis=0)
-
-    # Detrend the data
-    Pxx = mlab.detrend(Pxx, key='none')
-
-    # Reshape the data
-    Pxx = Pxx * window.reshape((-1, 1))
-
-    # Calculate the autocorrelation
-    Pxx = np.np.correlate(x, x, mode='full')
-    Pxx = Pxx[Pxx.size//2:]
-
-    # Take the Fourier Transform of the Autocorrelation
-    Pxx = np.fft.rfft(Pxx)
-
-    # Determine the positive frequencies
+    # Determine the frequencies
     freqs = np.fft.rfftfreq(NFFT, 1 / Fs)
-
 
     return Pxx, freqs
 
@@ -158,12 +132,14 @@ plt.show()
 
 # Determine the segment length
 NFFT = fs
-freq = np.fft.rfftfreq(NFFT, 1 / fs)
 
-# Calculate the coded PSD (above)
-PSD = psd_autocorr(strain_seg)
+# Calculate the autocorrelated PSD (above)
+#PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
 
-# Plot the coded and method psd on figure (make sure parameters are the same)
+
+
+
+# Plot the autocorrelated psd and method psd on figure (make sure parameters are the same)
 fig = plt.figure(figsize=(8, 8))
 fig.subplots_adjust(wspace=0.3, hspace=0.3)
 fig.suptitle("PSD Comparisons")
