@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.mlab as mlab
 import readligo as rl
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import acf
 
 
 def rolling_windows(x, n, noverlap=None, axis=0):
@@ -92,16 +91,25 @@ def psd(x, NFFT, Fs, noverlap=None):
 
 def psd_autocorr(x, NFFT, Fs, noverlap=None):
 
-    # Determine the AutoCorrelation
-    acorr_x = acf(x)
+    corr = np.correlate(x, x, mode='same')
+    lags = np.arange(0, len(x)// 2)
 
-    # Take the Fourier Transform of the autocorrelation
-    Pxx = np.fft.rfft(acorr_x, n=NFFT, axis=0)
+    # Take the Fourier Transform of the data
+    Pxx = np.fft.rfft(corr, NFFT)
 
-    # Determine the frequencies
+    # Scale the Pxx values
+    if not NFFT % 2:
+        slc = slice(1, -1, None)
+        # if we have an odd number, just don't scale DC
+    else:
+        slc = slice(1, None, None)
+    Pxx[slc] = Pxx[slc] * 2.
+    Pxx = Pxx / Fs
+
+    # Find the Frequencies
     freqs = np.fft.rfftfreq(NFFT, 1 / Fs)
 
-    return Pxx, freqs
+    return Pxx.real, freqs
 
 
 # -- Read in the file and data
@@ -120,7 +128,7 @@ length = 16  # seconds
 strain_seg = strain[segList[0]][0:(length * fs)]
 time_seg = time[segList[0]][0:(length * fs)]
 
-'''''
+
 # Plot the time series
 plt.figure()
 plt.plot(time_seg - time_seg[0], strain_seg)
@@ -128,15 +136,13 @@ plt.title("Time series")
 plt.xlabel('Time since GPS ' + str(time_seg[0]))
 plt.ylabel('Strain')
 plt.show()
-'''''
+
 
 # Determine the segment length
 NFFT = fs
 
 # Calculate the autocorrelated PSD (above)
-#PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
-
-
+PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
 
 
 # Plot the autocorrelated psd and method psd on figure (make sure parameters are the same)
@@ -161,14 +167,13 @@ plt.ylabel("PSD")
 plt.show()
 
 
-
-'''''
-diff = Pxx1 - PSD
+diff = PSD - Pxx1
 plt.figure()
 plt.plot(freq, diff)
 plt.title("Difference between then two plots")
 plt.xlabel("Frequency (Hz)")
 plt.xlim(0, 100)
+plt.grid()
 plt.ylabel("Difference")
 plt.show()
-'''''
+
