@@ -89,10 +89,10 @@ def psd(x, NFFT, Fs, noverlap=None):
     return Pxx, freqs
 
 
-def psd_autocorr(x, NFFT, Fs, noverlap=None):
+def psd_autocorr(x, NFFT, Fs):
+
 
     corr = np.correlate(x, x, mode='same')
-    lags = np.arange(0, len(x)// 2)
 
     # Take the Fourier Transform of the data
     Pxx = np.fft.rfft(corr, NFFT)
@@ -110,6 +110,7 @@ def psd_autocorr(x, NFFT, Fs, noverlap=None):
     freqs = np.fft.rfftfreq(NFFT, 1 / Fs)
 
     return Pxx.real, freqs
+
 
 
 # -- Read in the file and data
@@ -142,7 +143,7 @@ plt.show()
 NFFT = fs
 
 # Calculate the autocorrelated PSD (above)
-PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
+PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
 
 
 # Plot the autocorrelated psd and method psd on figure (make sure parameters are the same)
