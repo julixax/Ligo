@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 
 def rolling_windows(x, n, noverlap=None, axis=0):
     # Get all windows of x with length n as a single array, using strides to avoid data duplication.
-    # This was taken from the documentation because mine had bugs in it
-    # I am in the process of looking more into this stride function as well as pandas rolling window function
+    # This was taken from the documentation
 
     if noverlap is None:
         noverlap = 0
@@ -36,7 +35,6 @@ def rolling_windows(x, n, noverlap=None, axis=0):
     return np.lib.stride_tricks.as_strided(x, shape=shape, strides=strides)
 
 
-
 def psd(x, NFFT, Fs, noverlap=None):
 
     # If there is noverlap is None, then there is no overlap between the windows
@@ -54,13 +52,6 @@ def psd(x, NFFT, Fs, noverlap=None):
         n = len(x)
         x = np.resize(x, NFFT)
         x[n:] = 0
-
-
-    # Add zeros to both sides to allow for rolling window to be applied
-    # When these are added, they change the calculation
-    #h = int(NFFT / 2)
-    #n = np.zeros(h)
-    #x = np.concatenate([n, x, n])
 
     # Apply the rolling window to the data
     Pxx = rolling_windows(x, NFFT, noverlap, axis=0)
@@ -98,6 +89,47 @@ def psd(x, NFFT, Fs, noverlap=None):
     return Pxx, freqs
 
 
+def psd_autocorr(x, NFFT, Fs, noverlap=None):
+
+    # If there is noverlap is None, then there is no overlap between the windows
+    if noverlap is None:
+        noverlap = 0
+
+    # Make the window the size of the NFFT
+    window = np.hanning(NFFT)
+
+    # Make sure the data is a np array
+    x = np.asarray(x)
+
+    # zero pad x if the data is less than the segment NFFT
+    if len(x) < NFFT:
+        n = len(x)
+        x = np.resize(x, NFFT)
+        x[n:] = 0
+
+    # Apply the rolling window to the data
+    Pxx = rolling_windows(x, NFFT, noverlap, axis=0)
+
+    # Detrend the data
+    Pxx = mlab.detrend(Pxx, key='none')
+
+    # Reshape the data
+    Pxx = Pxx * window.reshape((-1, 1))
+
+    # Calculate the autocorrelation
+    Pxx = np.np.correlate(x, x, mode='full')
+    Pxx = Pxx[Pxx.size//2:]
+
+    # Take the Fourier Transform of the Autocorrelation
+    Pxx = np.fft.rfft(Pxx)
+
+    # Determine the positive frequencies
+    freqs = np.fft.rfftfreq(NFFT, 1 / Fs)
+
+
+    return Pxx, freqs
+
+
 # -- Read in the file and data
 fileName = '/Users/juliabellamy/PycharmProjects/ligo_stuff/LIGO/H-H1_LOSC_C00_4_V1-1186739813-4096.hdf5'
 strain, time, channel_dict = rl.loaddata(fileName)
@@ -114,6 +146,7 @@ length = 16  # seconds
 strain_seg = strain[segList[0]][0:(length * fs)]
 time_seg = time[segList[0]][0:(length * fs)]
 
+'''''
 # Plot the time series
 plt.figure()
 plt.plot(time_seg - time_seg[0], strain_seg)
@@ -121,12 +154,14 @@ plt.title("Time series")
 plt.xlabel('Time since GPS ' + str(time_seg[0]))
 plt.ylabel('Strain')
 plt.show()
+'''''
 
 # Determine the segment length
 NFFT = fs
+freq = np.fft.rfftfreq(NFFT, 1 / fs)
 
 # Calculate the coded PSD (above)
-PSD, freq = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+PSD = psd_autocorr(strain_seg)
 
 # Plot the coded and method psd on figure (make sure parameters are the same)
 fig = plt.figure(figsize=(8, 8))
@@ -135,7 +170,7 @@ fig.suptitle("PSD Comparisons")
 
 plt.subplot(211)
 plt.loglog(freq, PSD)
-plt.title("PSD (coded)")
+plt.title("PSD (Autocorrelation)")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
 
@@ -150,6 +185,8 @@ plt.ylabel("PSD")
 plt.show()
 
 
+
+'''''
 diff = Pxx1 - PSD
 plt.figure()
 plt.plot(freq, diff)
@@ -158,4 +195,4 @@ plt.xlabel("Frequency (Hz)")
 plt.xlim(0, 100)
 plt.ylabel("Difference")
 plt.show()
-
+'''''
