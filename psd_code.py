@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.mlab as mlab
-import readligo as rl
 import matplotlib.pyplot as plt
+import readligo as rl
+
 
 
 def rolling_windows(x, n, noverlap=None, axis=0):
@@ -143,7 +144,7 @@ plt.show()
 NFFT = fs
 
 # Calculate the autocorrelated PSD (above)
-PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
 
 
 # Plot the autocorrelated psd and method psd on figure (make sure parameters are the same)
