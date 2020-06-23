@@ -1,35 +1,11 @@
 import numpy as np
 
 
-def serial_corr(wave, lag=1):
-    n = len(wave)
-    y1 = x[lag:]
-    y2 = x[:n-lag]
-    corr = np.corrcoef(y1, y2)[0, 1]
-    print(corr)
-    return corr
-
-
-def autocorr(x):
-    lags = np.arange(len(x)//2)
-    corrs = [serial_corr(x, lag) for lag in lags]
-    return lags, corrs
-
-
-'''''
-corr coef:
-R (corr coef matrix) ij = C (covariance matrix) ij / sqrt( Cii * Cjj)
-
-take x (1D or 2D array) and y
-rowvar = True (each row is a variable and observations in teh columns)
-
-returns R (corr coef matrix of the values)
-'''''
-
-
-def corr_coef(x, y=None, rowvar=True):
+def corr_coef(x, y, rowvar=True):
 
     # R (corr coef matrix) ij = C (covariance matrix) ij / sqrt( Cii * Cjj)
+    # x and y are data of 1D or 2D array
+    # rowvar = True (each row is a variable and observations in the columns)
 
     # Calculate the covariance
     c = np.cov(x, y, rowvar)
@@ -53,6 +29,21 @@ def corr_coef(x, y=None, rowvar=True):
     return c
 
 
-x = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+def auto_corr(x):
+    n = len(x)
+    lags = np.arange(len(x)//2)
+    corrs = []
+    for lag in lags:
+        y1 = x[lag:]
+        y2 = x[:n-lag]
+        coefs = corr_coef(y1, y2)[0, 1]
+        corrs.append(coefs)
+
+    return lags, corrs
+
+
+x = np.array([0, 2, 2, 6, 4, 5, 6, 7, -4])
+print("Mine: " + str(auto_corr(x)))
+print("Method: " + str(autocorr(x)))
 
 
