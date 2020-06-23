@@ -31,20 +31,28 @@ def corr_coef(x, y=None, rowvar=True):
 
     # R (corr coef matrix) ij = C (covariance matrix) ij / sqrt( Cii * Cjj)
 
-    # Calculate the covariance (complex valued)
+    # Calculate the covariance
     c = np.cov(x, y, rowvar)
-    # Determine the diagonal of the covariance matrix for calculation
-    d = np.diag(c)
-    # Calculate the denominator
-    denominator = d[0] * d[1]
-    denominator = np.sqrt(denominator)
-    c = c / denominator
+
+    try:
+        # Determine the diagonal of the covariance matrix for calculation
+        d = np.diag(c)
+    except ValueError:
+        # if the covariance is scalar, then the matrix is divided by itself
+        return c / c
+
+    d_sqrt = np.sqrt(d.real)
+    c = c / d_sqrt[:, None]
+    c = c / d_sqrt[None, :]
+
+    # Data is now in 64 bits instead of 32, so clip the values and normalize between -1 and 1
+    np.clip(c.real, -1, 1, out=c.real)
+    if np.iscomplexobj(c):
+        np.clip(c.imag, -1, 1, out=c.imag)
 
     return c
 
 
-x = np.arange(0, 11, 1)
-print(x)
-cor = serial_corr(x)
-print(cor)
+x = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+
 
