@@ -180,35 +180,32 @@ plt.ylabel('Strain')
 plt.show()
 
 
+# Plot and compare the PSD methods
 # Determine the segment length
 NFFT = fs
 
+
+# Calculate the mlab psd
+window = np.hanning(NFFT)
+Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=window)
+
+# Calculate psd from averaging (mine)
+Pxx2, freqs2 = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+
 # Calculate the autocorrelated PSD (above)
-PSD, freq = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
+Pxx3, freqs3 = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
 
 
-# Plot the autocorrelated psd and method psd on figure (make sure parameters are the same)
-fig = plt.figure(figsize=(8, 8))
-fig.subplots_adjust(wspace=0.3, hspace=0.3)
-fig.suptitle("PSD Comparisons")
-
-plt.subplot(211)
-plt.loglog(freq, PSD)
-plt.title("PSD (Autocorrelation)")
+plt.loglog(freqs1, Pxx1, 'r', label="mlab psd")
+plt.loglog(freqs2, Pxx2, 'b', label="averaging fft psd")
+plt.loglog(freqs3, Pxx3, 'g', label="autocorrelation psd")
+plt.title("PSD methods")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
-
-window1 = np.hanning(NFFT)
-Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=window1)
-
-plt.subplot(212)
-plt.loglog(freqs1, Pxx1)
-plt.title("PSD (function)")
-plt.xlabel("Frequency (Hz)")
-plt.ylabel("PSD")
+plt.legend()
 plt.show()
 
-
+'''''
 diff = PSD - Pxx1
 plt.figure()
 plt.plot(freq, diff)
@@ -218,3 +215,4 @@ plt.xlim(0, 100)
 plt.grid()
 plt.ylabel("Difference")
 plt.show()
+'''''
