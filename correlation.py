@@ -62,7 +62,7 @@ half = half / half[0]
 
 # Comparison of autocorrelation methods
 plt.plot(lag, corr, 'r', label="Coded")
-plt.plot(lag, half, 'b', label="Modified Method")
+plt.plot(lag, half, 'b', label="Modified numpy Method")
 plt.xlabel("Lags")
 plt.ylabel("Correlation")
 plt.title("Correlation comparison")
