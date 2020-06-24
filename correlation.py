@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def corr_coef(x, y, rowvar=True):
 
     # R (corr coef matrix) ij = C (covariance matrix) ij / sqrt( Cii * Cjj)
