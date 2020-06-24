@@ -82,9 +82,11 @@ fig.suptitle("Autocorrelation of Sine Wave")
 plt.subplot(211)
 plt.plot(time, sin)
 plt.title("Signal")
+plt.xlabel("Time")
 plt.subplot(212)
 plt.plot(lags, sin_auto_corr)
 plt.title("Autocorrelated Signal")
+plt.xlabel("Lags")
 plt.show()
 
 
