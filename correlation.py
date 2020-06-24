@@ -42,9 +42,6 @@ def auto_corr(x):
     return lags, corrs
 
 
-
-
-
 x = np.random.normal(0, 0.1, 100)
 lag, corr = auto_corr(x)
 
@@ -72,8 +69,23 @@ plt.legend()
 plt.show()
 
 
+# Check autocorrelation function with the logic of the autocorrelation of a sine wave
+
+time = np.arange(0, 25, 0.1)
+sin = np.sin(time)
+lags, sin_auto_corr = auto_corr(sin)
 
 
+fig = plt.figure(figsize=(8, 8))
+fig.subplots_adjust(wspace=0.3, hspace=0.3)
+fig.suptitle("Autocorrelation of Sine Wave")
+plt.subplot(211)
+plt.plot(time, sin)
+plt.title("Signal")
+plt.subplot(212)
+plt.plot(lags, sin_auto_corr)
+plt.title("Autocorrelated Signal")
+plt.show()
 
 
 
