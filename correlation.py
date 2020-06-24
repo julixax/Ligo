@@ -1,5 +1,5 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 def corr_coef(x, y, rowvar=True):
 
@@ -42,8 +42,39 @@ def auto_corr(x):
     return lags, corrs
 
 
-x = np.array([0, 2, 2, 6, 4, 5, 6, 7, -4])
-print("Mine: " + str(auto_corr(x)))
-print("Method: " + str(autocorr(x)))
+
+
+
+x = np.random.normal(0, 0.1, 100)
+lag, corr = auto_corr(x)
+
+# Compare with np.correlate
+
+# np.correlate returns values not normalized between -1 and 1
+# returns positive and negative lags so lag=0 is the middle
+# does not correct that the number of overlapping elements changes as the lag increases
+corr2 = np.correlate(x, x, mode='same')
+
+# Correct np.correlate to better reflect what is wanted
+N = len(x)
+lengths = range(N, N//2, -1)
+half = corr2[N//2:].copy()
+half = half / lengths
+half = half / half[0]
+
+# Comparison of autocorrelation methods
+plt.plot(lag, corr, 'r', label="Coded")
+plt.plot(lag, half, 'b', label="Modified Method")
+plt.xlabel("Lags")
+plt.ylabel("Correlation")
+plt.title("Correlation comparison")
+plt.legend()
+plt.show()
+
+
+
+
+
+
 
 
