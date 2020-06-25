@@ -1,7 +1,38 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
-import readligo as rl
+
+
+def rolling_windows(x, n, noverlap=None, axis=0):
+    # Get all windows of x with length n as a single array, using strides to avoid data duplication.
+    # This was taken from the documentation
+
+    if noverlap is None:
+        noverlap = 0
+    x = np.asarray(x)
+
+    if n == 1 and noverlap == 0:
+        if axis == 0:
+            # This adds one more dimension
+            print(x)
+            print(x[np.newaxis])
+            return x[np.newaxis]
+
+        else:
+            return x[np.newaxis].transpose()
+
+    noverlap = int(noverlap)
+    n = int(n)
+    step = n - noverlap
+
+    if axis == 0:
+        shape = (n, (x.shape[-1]-noverlap)//step)
+        strides = (x.strides[0], step * x.strides[0])
+    else:
+        shape = ((x.shape[-1] - noverlap) // step, n)
+        strides = (step * x.strides[0], x.strides[0])
+    return np.lib.stride_tricks.as_strided(x, shape=shape, strides=strides)
+
 
 def corr_coef(x, y, rowvar=True):
 
@@ -39,9 +70,6 @@ def autocorrelation(x):
     # The maximum number of time lags
     lags = np.arange(len(x)//2)
 
-    # Remove the mean from the data
-    x = x - np.mean(x)
-
     # Determine the correlation coefficient for each shifted signal with itself
     corrs = []
     for lag in lags:
@@ -53,13 +81,66 @@ def autocorrelation(x):
     return corrs, lags
 
 
-def psd_from_autocorrolate(x, NFFT, Fs):
+def psd_from_autocorrolate(x, NFFT, Fs, noverlap=None):
+
+    # If there noverlap is None, then there is no overlap between the windows
+    if noverlap is None:
+        noverlap = 0
+
+    # Make sure the data is a np array
+    x = np.asarray(x)
+
+    # Remove the mean from the data
+    x = x - np.mean(x)
+
+    # Break the data into blocks
+    b = rolling_windows(x, NFFT, noverlap, axis=0)
+
+    # Detrend the data
+    b = mlab.detrend(b, key='none')
+
+    # Calculate the PSD of each block
+    m, n = b.shape
+    i = 0
+    Pxx = []
+    while i < n:
+        # Take the i-th column of the data blocks
+        a = b[:, i]
+        # Determine the autocorrelation
+        corr, lag = autocorrelation(a)
+        # Apply a window to each block
+        corr_windowed = corr * np.hanning(len(corr))
+        # Take the Fourier Transform of the autocorrelation of each block
+        P = np.fft.rfft(corr_windowed, NFFT)
+        P = np.abs(P)
+        Pxx.append(P)
+        i += 1
+
+    # Average the blocks together
+    Pxx = np.asarray(Pxx)
+    Pxx = np.mean(Pxx, axis=0)
+
+    # Scale the PSD
+    if not NFFT % 2:
+        slc = slice(1, -1, None)
+        # if we have an odd number, just don't scale DC
+    else:
+        slc = slice(1, None, None)
+    Pxx[slc] = Pxx[slc] * 2.5
+    Pxx = Pxx / Fs
+
+    # Determine the frequencies
+    freq = np.fft.rfftfreq(NFFT, 1 / Fs)
+    return Pxx, freq
+
+
+def psd_auto(x, NFFT, Fs):
+    x = x - np.mean(x)
     Rxx, lags = autocorrelation(x)
-    Rxx_copy = Rxx[:NFFT]
-    window = np.hanning(len(Rxx_copy))
-    Rxx_win = Rxx_copy * window
+    window = np.hanning(len(Rxx))
+    Rxx_win = Rxx * window
     Rxx_fft = np.fft.rfft(Rxx_win, NFFT)
-    Pxx = np.abs(Rxx_fft)
+    Pxx = (Rxx_fft)
     fr = np.fft.rfftfreq(NFFT, 1 / Fs)
 
     if not NFFT % 2:
@@ -67,45 +148,51 @@ def psd_from_autocorrolate(x, NFFT, Fs):
         # if we have an odd number, just don't scale DC
     else:
         slc = slice(1, None, None)
-    Pxx[slc] = Pxx[slc] * 1.32
+    Pxx[slc] = Pxx[slc] * 2
     Pxx = Pxx / Fs
-
 
     return Pxx, fr
 
 
 # Number of data points
-N = 512
+N = 1024
 # time resolution
 dt = 0.01
 T = N*dt
 t = np.linspace(0, N*dt, N)
 # signal time series parameters
-f1 = 20
+f1 = 10
 h = np.sin(f1 * 2.0*np.pi*t)
+
+plt.plot(t, h)
+plt.show()
+
 
 fs = 100
 NFFT = fs
-pxx, freq = mlab.psd(h, NFFT=NFFT, Fs=fs)       # Works!
-P, f = psd_from_autocorrolate(h, NFFT=NFFT, Fs=fs)
+pxx, freq = mlab.psd(h, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+p, f = psd_from_autocorrolate(h, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+pa, fa = psd_auto(h, NFFT=NFFT, Fs=fs)
+
+print(len(h))
+print(len(pxx))
+print(len(pa))
 
 
 
-plt.plot(freq, pxx, 'r', label="mlab psd")
-plt.plot(f, P, 'b', label="auto psd")
+plt.semilogy(freq, np.sqrt(pxx), 'r', label="mlab psd")
+#plt.plot(f, p, 'b', label="new auto psd")
+plt.semilogy(fa, np.abs(pa.real), 'g', label="(real) auto psd")
+plt.semilogy(fa, np.abs(pa.imag), 'b', label="(imag) auto psd")
+plt.semilogy(fa, np.abs(pa), 'c', label="(mag) auto psd")
 plt.xlabel("freq")
 plt.ylabel("PSD")
 plt.legend()
 plt.show()
 
-ratio = pxx / P
-print(np.max(ratio))
-diff = P - pxx
-print(np.max(diff))
 
-
-
-
-
-
+ratio = pxx / pa
+print(ratio)
+diff = pa - pxx
+print(diff)
 

@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import readligo as rl
 
 
-
 def rolling_windows(x, n, noverlap=None, axis=0):
     # Get all windows of x with length n as a single array, using strides to avoid data duplication.
     # This was taken from the documentation
@@ -118,7 +117,7 @@ def corr_coef(x, y, rowvar=True):
     return c
 
 
-def auto_corr(x):
+def autocorrelation(x):
     n = len(x)
     lags = np.arange(len(x)//2)
     corrs = []
@@ -131,27 +130,79 @@ def auto_corr(x):
     return lags, corrs
 
 
-def psd_autocorr(x, NFFT, Fs):
+def psd_from_autocorrolate(x, NFFT, Fs):
+    Rxx, lags = autocorrelation(x)
+    Rxx_copy = Rxx[:NFFT]
+    window = np.hanning(len(Rxx_copy))
+    Rxx_win = Rxx_copy * window
+    Rxx_fft = np.fft.rfft(Rxx_win, NFFT)
+    Pxx = np.abs(Rxx_fft)
+    fr = np.fft.rfftfreq(NFFT, 1 / Fs)
 
-
-    corr = np.correlate(x, x, mode='same')
-
-    # Take the Fourier Transform of the data
-    Pxx = np.fft.rfft(corr, NFFT)
-
-    # Scale the Pxx values
     if not NFFT % 2:
         slc = slice(1, -1, None)
         # if we have an odd number, just don't scale DC
     else:
         slc = slice(1, None, None)
-    Pxx[slc] = Pxx[slc] * 2.
+    Pxx[slc] = Pxx[slc] * 1
     Pxx = Pxx / Fs
 
-    # Find the Frequencies
-    freqs = np.fft.rfftfreq(NFFT, 1 / Fs)
+    return Pxx, fr
 
-    return Pxx.real, freqs
+
+
+def psd_auto(x, NFFT, Fs, noverlap=None):
+
+    # If there noverlap is None, then there is no overlap between the windows
+    if noverlap is None:
+        noverlap = 0
+
+    # Make sure the data is a np array
+    x = np.asarray(x)
+
+    # Remove the mean from the data
+    x = x - np.mean(x)
+
+    # Break the data into blocks
+    b = rolling_windows(x, NFFT, noverlap, axis=0)
+
+    # Detrend the data
+    b = mlab.detrend(b, key='none')
+
+    # Calculate the PSD of each block
+    m, n = b.shape
+    i = 0
+    Pxx = []
+    while i < n:
+        # Take the i-th column of the data blocks
+        a = b[:, i]
+        # Determine the autocorrelation
+        corr, lag = autocorrelation(a)
+        # Apply a window to each block
+        corr_windowed = corr * np.hanning(len(corr))
+        # Take the Fourier Transform of the autocorrelation of each block
+        P = np.fft.rfft(corr_windowed, NFFT)
+        P = np.abs(P)
+        Pxx.append(P)
+        i += 1
+
+    # Average the blocks together
+    Pxx = np.asarray(Pxx)
+    Pxx = np.mean(Pxx, axis=0)
+
+    # Scale the PSD
+    if not NFFT % 2:
+        slc = slice(1, -1, None)
+        # if we have an odd number, just don't scale DC
+    else:
+        slc = slice(1, None, None)
+    Pxx[slc] = Pxx[slc] * 2
+    Pxx = Pxx / Fs
+
+    # Determine the frequencies
+    freq = np.fft.rfftfreq(NFFT, 1 / Fs)
+   
+    return Pxx, freq
 
 
 # -- Read in the file and data
@@ -181,9 +232,9 @@ plt.show()
 
 
 # Plot and compare the PSD methods
+
 # Determine the segment length
 NFFT = fs
-
 
 # Calculate the mlab psd
 window = np.hanning(NFFT)
@@ -192,13 +243,17 @@ Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=w
 # Calculate psd from averaging (mine)
 Pxx2, freqs2 = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
 
-# Calculate the autocorrelated PSD (above)
-Pxx3, freqs3 = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
+# Calculate the old autocorrelated PSD (above)
+Pxx3, freqs3 = psd_from_autocorrolate(strain_seg, NFFT=NFFT, Fs=fs)
+
+# Calculate the new autocorrelated PSD (above)
+Pxx4, freqs4 = psd_auto(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
 
 
 plt.loglog(freqs1, Pxx1, 'r', label="mlab psd")
 plt.loglog(freqs2, Pxx2, 'b', label="averaging fft psd")
-plt.loglog(freqs3, Pxx3, 'g', label="autocorrelation psd")
+plt.loglog(freqs3, Pxx3, 'g', label="old autocorrelation psd")
+plt.loglog(freqs4, Pxx4, 'c', label="new autocorrelation psd")
 plt.title("PSD methods")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
