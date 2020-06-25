@@ -1,40 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as pl
-from scipy.fftpack import fft, ifft, ifftshift
-
-
-def autocorrelation(x):
-    # Calculate the autocorrelation by computing the inverse of the psd
-    xp = ifftshift((x - np.average(x))/np.std(x))
-    n, = xp.shape
-    xp = np.r_[xp[:n//2], np.zeros_like(xp), xp[n//2:]]
-    f = fft(xp)
-    p = np.absolute(f)**2
-    pi = ifft(p)
-    print((np.arange(n//2)[::-1]+n//2))
-    return np.real(pi)[:n//2]/(np.arange(n//2)[::-1]+n//2)
-
-
-def autocorrelation2(x):
-    # Calculate autocorrelation directly
-    maxdelay = len(x)//5
-    N = len(x)
-    mean = np.average(x)
-    var = np.var(x)
-    xp = (x - mean)/np.sqrt(var)
-    autocorrelation = np.zeros(maxdelay)
-    for r in range(maxdelay):
-        for k in range(N-r):
-            autocorrelation[r] += xp[k]*xp[k+r]
-        autocorrelation[r] /= float(N-r)
-    return autocorrelation
-
-
-def autocorrelation3(x):
-    # Calculate using numpy method
-    xp = (x - np.mean(x))/np.std(x)
-    result = np.correlate(xp, xp, mode='full')
-    return result[result.size//2:]/len(xp)
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import readligo as rl
 
 def corr_coef(x, y, rowvar=True):
 
@@ -64,9 +31,18 @@ def corr_coef(x, y, rowvar=True):
     return c
 
 
-def autocorrelation4(x):
+def autocorrelation(x):
+
+    # Determine the length of the data
     n = len(x)
+
+    # The maximum number of time lags
     lags = np.arange(len(x)//2)
+
+    # Remove the mean from the data
+    x = x - np.mean(x)
+
+    # Determine the correlation coefficient for each shifted signal with itself
     corrs = []
     for lag in lags:
         y1 = x[lag:]
@@ -74,19 +50,62 @@ def autocorrelation4(x):
         coefs = corr_coef(y1, y2)[0, 1]
         corrs.append(coefs)
 
-    return corrs
+    return corrs, lags
 
 
-t = np.linspace(0,20,1024)
-x = np.sin(t)
-pl.plot(t[:200], autocorrelation(x)[:200], 'r', label='scipy fft')
-pl.plot(t[:200], autocorrelation2(x)[:200],'b', label='direct autocorrelation')
-pl.plot(t[:200], autocorrelation3(x)[:200],'g', label='numpy correlate')
-pl.plot(t[:200], autocorrelation4(x)[:200],'c', label='numpy correlate')
-pl.legend()
-pl.show()
+def psd_from_autocorrolate(x, NFFT, Fs):
+    Rxx, lags = autocorrelation(x)
+    Rxx_copy = Rxx[:NFFT]
+    window = np.hanning(len(Rxx_copy))
+    Rxx_win = Rxx_copy * window
+    Rxx_fft = np.fft.rfft(Rxx_win, NFFT)
+    Pxx = np.abs(Rxx_fft)
+    fr = np.fft.rfftfreq(NFFT, 1 / Fs)
 
-diff = autocorrelation2(x)[:200] - autocorrelation4(x)[:200]
-print(np.amax(diff))
-pl.plot(t[:200], diff[:200])
-pl.show()
+    if not NFFT % 2:
+        slc = slice(1, -1, None)
+        # if we have an odd number, just don't scale DC
+    else:
+        slc = slice(1, None, None)
+    Pxx[slc] = Pxx[slc] * 1.32
+    Pxx = Pxx / Fs
+
+
+    return Pxx, fr
+
+
+# Number of data points
+N = 512
+# time resolution
+dt = 0.01
+T = N*dt
+t = np.linspace(0, N*dt, N)
+# signal time series parameters
+f1 = 20
+h = np.sin(f1 * 2.0*np.pi*t)
+
+fs = 100
+NFFT = fs
+pxx, freq = mlab.psd(h, NFFT=NFFT, Fs=fs)       # Works!
+P, f = psd_from_autocorrolate(h, NFFT=NFFT, Fs=fs)
+
+
+
+plt.plot(freq, pxx, 'r', label="mlab psd")
+plt.plot(f, P, 'b', label="auto psd")
+plt.xlabel("freq")
+plt.ylabel("PSD")
+plt.legend()
+plt.show()
+
+ratio = pxx / P
+print(np.max(ratio))
+diff = P - pxx
+print(np.max(diff))
+
+
+
+
+
+
+
