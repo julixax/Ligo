@@ -34,7 +34,7 @@ def psd_auto(data, Fs):
     data = data - np.mean(data)
 
     # Compute the autocorrelation of the data
-    rxx = np.correlate(data, data, mode='same')
+    rxx = acorr(data)
 
     # Normalize the autocorrelated data between -1 and 1
     rxx_max = np.max(rxx)
@@ -52,9 +52,6 @@ def psd_auto(data, Fs):
     freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
 
     return pxx, freq
-
-
-
 
 
 t = np.arange(0, 100, .001)
@@ -80,12 +77,14 @@ plt.show()
 sin_x = sin - np.mean(sin)
 signal_x = signal - np.mean(signal)
 
-corr = np.correlate(sin_x, sin_x, mode='same')
+corr = np.correlate(sin_x, sin_x, mode='full')
+corr = corr[len(corr)//2:]
 corr_max = np.max(corr)
 print("len(corr): " + str(len(corr)))
 corr = corr / corr_max
 
-sig_corr = np.correlate(signal_x, signal_x, mode='same')
+sig_corr = np.correlate(signal_x, signal_x, mode='full')
+sig_corr = sig_corr[len(sig_corr)//2:]
 sig_corr_max = np.max(sig_corr)
 print("len(sig_corr): " + str(len(sig_corr)))
 sig_corr = sig_corr / sig_corr_max
@@ -146,3 +145,17 @@ print(np.max(x))
 print(np.max(pxx))
 print(np.max(sig_x))
 print(np.max(sig_pxx))
+
+
+y = np.array([1, 2, 3, 4, 5])
+a_x = acorr(y)
+a = np.correlate(y, y, 'full')
+a = a[len(a)//2:]
+
+
+ls = np.arange(0, len(y), 1)
+
+plt.plot(ls, a_x, 'r', label='mine')
+plt.plot(ls, a, 'b', label='numpy')
+plt.legend()
+plt.show()
