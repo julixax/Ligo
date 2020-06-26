@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import readligo as rl
 
 
-
 def rolling_windows(x, n, noverlap=None, axis=0):
     # Get all windows of x with length n as a single array, using strides to avoid data duplication.
     # This was taken from the documentation
@@ -90,6 +89,58 @@ def psd(x, NFFT, Fs, noverlap=None):
     return Pxx, freqs
 
 
+def acorr(x):
+
+    # Make sure data is a numpy array and make copy
+    x = np.asarray(x)
+    y = np.copy(x)
+
+    n = len(x)
+    lags = np.arange(0, n, 1)
+    acorr = []
+
+    # Calculate autocorrelation
+    for lag in lags:
+        if lag == 0:
+            c = (x * y).sum()
+            acorr.append(c)
+        else:
+            x = x[1:]
+            y = y[:n-lag]
+            c = (x * y).sum()
+            acorr.append(c)
+
+    return acorr
+
+
+
+def psd_auto(data, Fs):
+
+    # Remove the mean from the signal
+    data = data - np.mean(data)
+
+    # Compute the autocorrelation of the data
+    rxx = acorr(data)
+
+    # Normalize the autocorrelated data between -1 and 1
+    rxx_max = np.max(rxx)
+    rxx = rxx / rxx_max
+
+    # Apply a window to the correlated data
+    window = np.hanning(len(rxx))
+    rxx = rxx * window
+
+    # Take the magnitude of the fft of the autocorrelated data
+    pxx = np.fft.rfft(rxx)
+    pxx = np.abs(pxx) / Fs
+
+    # Determine the frequencies
+    freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
+
+    return pxx, freq
+
+
+'''''
 def corr_coef(x, y, rowvar=True):
 
     # R (corr coef matrix) ij = C (covariance matrix) ij / sqrt( Cii * Cjj)
@@ -177,6 +228,7 @@ def psd_auto(data, Fs):
     freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
 
     return pxx, freq
+'''''
 
 
 # -- Read in the file and data
@@ -206,37 +258,40 @@ plt.show()
 
 
 # Plot and compare the PSD methods
-# Determine the segment length
-NFFT = fs
 
 # Calculate the mlab psd
-window = np.hanning(NFFT)
-Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=window)
+nx = len(strain_seg)
+Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=fs, Fs=fs, noverlap=fs//2)
+print(len(Pxx1))
 
 # Calculate psd from averaging (mine)
-Pxx2, freqs2 = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+Pxx2, freqs2 = psd(strain_seg, NFFT=fs, Fs=fs, noverlap=fs//2)
+print(len(Pxx2))
 
 # Calculate the autocorrelated PSD (above)
 Pxx3, freqs3 = psd_auto(strain_seg, Fs=fs)
+print(len(Pxx3))
 
 
-plt.plot(freqs1, Pxx1, 'r', label="mlab psd")
-plt.plot(freqs2, Pxx2, 'b', label="averaging fft psd")
-plt.plot(freqs3, Pxx3, 'g', label="autocorrelation psd")
-plt.title("PSD methods")
+fig = plt.figure(figsize=(12, 8))
+fig.suptitle("PSD Comparisons")
+plt.subplot(221)
+plt.semilogy(freqs1, Pxx1, 'r', label="mlab psd")
+plt.semilogy(freqs2, Pxx2, 'b', label="averaging fft psd")
+plt.semilogy(freqs3, Pxx3, 'g', label="autocorrelation psd")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")
 plt.legend()
-plt.show()
-
-'''''
-diff = PSD - Pxx1
-plt.figure()
-plt.plot(freq, diff)
-plt.title("Difference between then two plots")
+plt.subplot(222)
+plt.semilogy(freqs1, Pxx1, 'r')
 plt.xlabel("Frequency (Hz)")
-plt.xlim(0, 100)
-plt.grid()
-plt.ylabel("Difference")
+plt.ylabel("PSD")
+plt.subplot(223)
+plt.semilogy(freqs2, Pxx2, 'b')
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.subplot(224)
+plt.semilogy(freqs3, Pxx3, 'g')
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
 plt.show()
-'''''
