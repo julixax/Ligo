@@ -157,7 +157,7 @@ def psd_auto(x, NFFT, Fs):
 # Number of data points
 N = 1024
 # time resolution
-dt = 0.01
+dt = 0.001
 T = N*dt
 t = np.linspace(0, N*dt, N)
 # signal time series parameters
@@ -169,10 +169,10 @@ plt.show()
 
 
 fs = 100
-NFFT = fs
-pxx, freq = mlab.psd(h, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
-p, f = psd_from_autocorrolate(h, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
-pa, fa = psd_auto(h, NFFT=NFFT, Fs=fs)
+NFFT = 10010
+pxx, freq = mlab.psd(h, NFFT=len(h), Fs=fs)
+#p, f = psd_from_autocorrolate(h, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
+pa, fa = psd_auto(h, NFFT=len(h), Fs=fs)
 
 print(len(h))
 print(len(pxx))
@@ -180,11 +180,11 @@ print(len(pa))
 
 
 
-plt.semilogy(freq, np.sqrt(pxx), 'r', label="mlab psd")
+plt.plot(freq, np.sqrt(pxx), 'r', label="mlab psd")
 #plt.plot(f, p, 'b', label="new auto psd")
-plt.semilogy(fa, np.abs(pa.real), 'g', label="(real) auto psd")
-plt.semilogy(fa, np.abs(pa.imag), 'b', label="(imag) auto psd")
-plt.semilogy(fa, np.abs(pa), 'c', label="(mag) auto psd")
+#plt.semilogy(fa, np.abs(pa.real), 'g', label="(real) auto psd")
+#plt.semilogy(fa, np.abs(pa.imag), 'b', label="(imag) auto psd")
+plt.plot(fa, np.abs(pa), 'c', label="(mag) auto psd")
 plt.xlabel("freq")
 plt.ylabel("PSD")
 plt.legend()
