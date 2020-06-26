@@ -9,6 +9,11 @@ def acorr(x):
     x = np.asarray(x)
     y = np.copy(x)
 
+    if len(x.shape) == 2:
+        axis = 0
+    else:
+        axis = None
+
     n = len(x)
     lags = np.arange(0, n, 1)
     acorr = []
@@ -16,16 +21,20 @@ def acorr(x):
     # Calculate autocorrelation
     for lag in lags:
         if lag == 0:
-            c = (x * y).sum()
+            c = (x * y).sum(axis)
             acorr.append(c)
         else:
             x = x[1:]
             y = y[:n-lag]
-            c = (x * y).sum()
+            c = (x * y).sum(axis)
             acorr.append(c)
 
-    return acorr
-
+    # Average slice of data if 2-D data
+    if axis == 0:
+        acorr = np.mean(acorr, axis=axis)
+        return acorr
+    else:
+        return acorr
 
 
 def psd_auto(data, Fs):
