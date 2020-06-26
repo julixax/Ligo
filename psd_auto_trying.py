@@ -2,6 +2,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 
+
+def psd_auto(data, Fs):
+
+    # Remove the mean from the signal
+    data = data - np.mean(data)
+
+    # Compute the autocorrelation of the data
+    rxx = np.correlate(data, data, mode='same')
+
+    # Normalize the autocorrelated data between -1 and 1
+    rxx_max = np.max(rxx)
+    rxx = rxx / rxx_max
+
+    # Apply a window to the correlated data
+    window = np.hanning(len(rxx))
+    rxx = rxx * window
+
+    # Take the magnitude of the fft of the autocorrelated data
+    pxx = np.fft.rfft(rxx)
+    pxx = np.abs(pxx) / Fs
+
+    # Determine the frequencies
+    freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
+
+    return pxx, freq
+
+
+
+
+
 t = np.arange(0, 100, .001)
 ts = t[1] - t[0]
 fs = 1/ts
