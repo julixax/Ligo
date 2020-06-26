@@ -15,8 +15,6 @@ def rolling_windows(x, n, noverlap=None, axis=0):
     if n == 1 and noverlap == 0:
         if axis == 0:
             # This adds one more dimension
-            print(x)
-            print(x[np.newaxis])
             return x[np.newaxis]
 
         else:
@@ -69,8 +67,10 @@ def psd(x, NFFT, Fs, noverlap=None):
     Pxx = Pxx * np.conj(Pxx)
 
     # Take the mean of the Pxx
+    print("Pxx.shape: " + str(Pxx.shape))
     Pxx = Pxx.mean(axis=1)
     Pxx = Pxx.real
+    print("Pxx.shape: " + str(Pxx.shape))
 
     # Scale the Pxx due to power loss from windowing
     # Scaling factors taken from the documentation to ensure that the graphs looked the same
@@ -95,6 +95,11 @@ def acorr(x):
     x = np.asarray(x)
     y = np.copy(x)
 
+    if len(x.shape) == 2:
+        axis = 0
+    else:
+        axis = None
+
     n = len(x)
     lags = np.arange(0, n, 1)
     acorr = []
@@ -102,40 +107,53 @@ def acorr(x):
     # Calculate autocorrelation
     for lag in lags:
         if lag == 0:
-            c = (x * y).sum()
+            c = (x * y).sum(axis)
             acorr.append(c)
         else:
             x = x[1:]
             y = y[:n-lag]
-            c = (x * y).sum()
+            c = (x * y).sum(axis)
             acorr.append(c)
 
+    # Average slice of data if 2-D data
+    #if axis == 0:
+     #   acorr = np.mean(acorr, axis=axis)
+     #   return acorr
+    #else:
     return acorr
 
 
-
-def psd_auto(data, Fs):
+def psd_auto(data, NFFT, Fs, noverlap=None):
 
     # Remove the mean from the signal
     data = data - np.mean(data)
 
+    # Apply the rolling window
+    rxx = rolling_windows(data, NFFT, noverlap, axis=0)
+    print("rxx.shape: " + str(rxx.shape))
+
     # Compute the autocorrelation of the data
-    rxx = acorr(data)
+    rxx = acorr(rxx)
+    rxx = np.asarray(rxx)
+    print("rxx.shape: " + str(rxx.shape))
 
     # Normalize the autocorrelated data between -1 and 1
     rxx_max = np.max(rxx)
     rxx = rxx / rxx_max
 
     # Apply a window to the correlated data
-    window = np.hanning(len(rxx))
-    rxx = rxx * window
+    window = np.hanning(NFFT)
+    rxx = rxx * window.reshape((-1, 1))
 
     # Take the magnitude of the fft of the autocorrelated data
-    pxx = np.fft.rfft(rxx)
+    pxx = np.fft.rfft(rxx, n=NFFT, axis=0)
     pxx = np.abs(pxx) / Fs
+
+    pxx = pxx.mean(axis=1)
 
     # Determine the frequencies
     freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
+    print(pxx.shape)
 
     return pxx, freq
 
@@ -236,6 +254,7 @@ fileName = '/Users/juliabellamy/PycharmProjects/ligo_stuff/LIGO/H-H1_LOSC_C00_4_
 strain, time, channel_dict = rl.loaddata(fileName)
 ts = time[1] - time[0]  # Time between samples
 fs = int(1.0 / ts)  # Sampling frequency
+print("fs: " + str(fs))
 
 
 # -- Choose a few seconds of "good data"
@@ -246,6 +265,7 @@ length = 16  # seconds
 # take the section of good data and get the data
 strain_seg = strain[segList[0]][0:(length * fs)]
 time_seg = time[segList[0]][0:(length * fs)]
+print("len(strain_seg): " + str(len(strain_seg)))
 
 
 # Plot the time series
@@ -261,16 +281,16 @@ plt.show()
 
 # Calculate the mlab psd
 nx = len(strain_seg)
-Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=fs, Fs=fs, noverlap=fs//2)
-print(len(Pxx1))
+Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=fs, Fs=fs)
+print("len(Pxx1): " + str(len(Pxx1)))
 
 # Calculate psd from averaging (mine)
-Pxx2, freqs2 = psd(strain_seg, NFFT=fs, Fs=fs, noverlap=fs//2)
-print(len(Pxx2))
+Pxx2, freqs2 = psd(strain_seg, NFFT=fs, Fs=fs)
+print("len(Pxx2): " + str(len(Pxx2)))
 
 # Calculate the autocorrelated PSD (above)
-Pxx3, freqs3 = psd_auto(strain_seg, Fs=fs)
-print(len(Pxx3))
+Pxx3, freqs3 = psd_auto(strain_seg, NFFT=fs, Fs=fs)
+print("len(Pxx3): " + str(len(Pxx3)))
 
 
 fig = plt.figure(figsize=(12, 8))
