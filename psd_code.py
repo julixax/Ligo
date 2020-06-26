@@ -154,6 +154,31 @@ def psd_autocorr(x, NFFT, Fs):
     return Pxx.real, freqs
 
 
+def psd_auto(data, Fs):
+    # Remove the mean from the signal
+    data = data - np.mean(data)
+
+    # Compute the autocorrelation of the data
+    rxx = np.correlate(data, data, mode='same')
+
+    # Normalize the autocorrelated data between -1 and 1
+    rxx_max = np.max(rxx)
+    rxx = rxx / rxx_max
+
+    # Apply a window to the correlated data
+    window = np.hanning(len(rxx))
+    rxx = rxx * window
+
+    # Take the magnitude of the fft of the autocorrelated data
+    pxx = np.fft.rfft(rxx)
+    pxx = np.abs(pxx) / Fs
+
+    # Determine the frequencies
+    freq = np.fft.rfftfreq(len(rxx), 1 / Fs)
+
+    return pxx, freq
+
+
 # -- Read in the file and data
 fileName = '/Users/juliabellamy/PycharmProjects/ligo_stuff/LIGO/H-H1_LOSC_C00_4_V1-1186739813-4096.hdf5'
 strain, time, channel_dict = rl.loaddata(fileName)
@@ -184,7 +209,6 @@ plt.show()
 # Determine the segment length
 NFFT = fs
 
-
 # Calculate the mlab psd
 window = np.hanning(NFFT)
 Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=window)
@@ -193,12 +217,12 @@ Pxx1, freqs1 = mlab.psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2, window=w
 Pxx2, freqs2 = psd(strain_seg, NFFT=NFFT, Fs=fs, noverlap=NFFT//2)
 
 # Calculate the autocorrelated PSD (above)
-Pxx3, freqs3 = psd_autocorr(strain_seg, NFFT=NFFT, Fs=fs)
+Pxx3, freqs3 = psd_auto(strain_seg, Fs=fs)
 
 
-plt.loglog(freqs1, Pxx1, 'r', label="mlab psd")
-plt.loglog(freqs2, Pxx2, 'b', label="averaging fft psd")
-plt.loglog(freqs3, Pxx3, 'g', label="autocorrelation psd")
+plt.plot(freqs1, Pxx1, 'r', label="mlab psd")
+plt.plot(freqs2, Pxx2, 'b', label="averaging fft psd")
+plt.plot(freqs3, Pxx3, 'g', label="autocorrelation psd")
 plt.title("PSD methods")
 plt.xlabel("Frequency (Hz)")
 plt.ylabel("PSD")

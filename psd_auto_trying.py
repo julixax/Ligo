@@ -3,6 +3,31 @@ import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 
 
+def acorr(x):
+
+    # Make sure data is a numpy array and make copy
+    x = np.asarray(x)
+    y = np.copy(x)
+
+    n = len(x)
+    lags = np.arange(0, n, 1)
+    acorr = []
+
+    # Calculate autocorrelation
+    for lag in lags:
+        if lag == 0:
+            c = (x * y).sum()
+            acorr.append(c)
+        else:
+            x = x[1:]
+            y = y[:n-lag]
+            c = (x * y).sum()
+            acorr.append(c)
+
+    return acorr
+
+
+
 def psd_auto(data, Fs):
 
     # Remove the mean from the signal
